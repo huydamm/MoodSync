@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Emotion + Sentiment Dashboard</title>
+  <style>
+    body {
+      background: #101010;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+
+    /* Left: Text Area */
+    #text-section {
+      display: flex;
+      flex-direction: column;
+    }
+    textarea {
+      flex-grow: 1;
+      background: #1a1a1a;
+      color: white;
+      border: 2px solid #00ff99;
+      border-radius: 10px;
+      padding: 15px;
+      font-size: 1.1em;
+      resize: none;
+    }
+
+    /* Right: Webcam + Stats */
+    #camera-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+    }
+    img {
+      width: 100%;
+      border: 2px solid #00ff99;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+
+    /* Progress Bar */
+    .progress-container {
+      width: 100%;
+      background: #333;
+      border-radius: 10px;
+      overflow: hidden;
+      height: 25px;
+      margin-top: 10px;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #00ff99;
+      transition: width 0.4s ease-in-out;
+    }
+
+    /* Emoji */
+    #emoji {
+      font-size: 3em;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="text-section">
+    <h2>💬 Type your thoughts</h2>
+    <textarea id="user_text" placeholder="Start typing..."></textarea>
+  </div>
+
+  <div id="camera-section">
+    <div>
+      <h2>🎥 Emotion Detection</h2>
+      <img src="{{ url_for('video_feed') }}" alt="Webcam Feed">
+    </div>
+
+    <div>
+      <h3>🧠 Sentiment Confidence</h3>
+      <div class="progress-container">
+        <div id="progress" class="progress-bar"></div>
+      </div>
+      <p id="sentiment_result"></p>
+      <div id="emoji">😐</div>
+    </div>
+  </div>
+
+  <script>
+  const textarea = document.getElementById("user_text");
+  const progressBar = document.getElementById("progress");
+  const sentimentText = document.getElementById("sentiment_result");
+  const emoji = document.getElementById("emoji");
+
+  let timeout = null;
+  textarea.addEventListener("input", function() {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      const text = textarea.value.trim();
+      if (text.length === 0) {
+        sentimentText.textContent = "";
+        progressBar.style.width = "0%";
+        emoji.textContent = "😐";
+        return;
+      }
+
+      fetch("/combined_emotion", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "user_text=" + encodeURIComponent(text)
+      })
+      .then(res => res.json())
+      .then(data => {
+        const conf = data.confidence;
+        sentimentText.textContent = `${data.emotion} (${conf.toFixed(2)}%)`;
+
+        // Smooth color transition
+        if (data.emotion === "POSITIVE") {
+          progressBar.style.background = `linear-gradient(to right, #00ff99, #007755)`;
+          emoji.textContent = "😄";
+        } else {
+          progressBar.style.background = `linear-gradient(to right, #ff4444, #aa0000)`;
+          emoji.textContent = "☹️";
+        }
+
+        progressBar.style.width = conf + "%";
+      })
+      .catch(error => console.error("Error:", error));
+    }, 500); // slight delay for smoother UX
+  });
+</script>
+</body>
+</html>
